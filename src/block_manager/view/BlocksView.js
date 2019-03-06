@@ -1,7 +1,7 @@
 import { isString, isObject, bindAll } from 'underscore';
 
 const BlockView = require('./BlockView');
-const CategoryView = require('./CategoryView');
+const CategoryView = require('categories/view/CategoryView');
 
 module.exports = require('backbone').View.extend({
   initialize(opts, config) {
@@ -11,9 +11,9 @@ module.exports = require('backbone').View.extend({
     this.renderedCategories = [];
     var ppfx = this.config.pStylePrefix || '';
     this.ppfx = ppfx;
-    this.noCatClass = `${ppfx}blocks-no-cat`;
-    this.blockContClass = `${ppfx}blocks-c`;
-    this.catsClass = `${ppfx}block-categories`;
+    this.noCatClass = `${ppfx}items-no-cat`;
+    this.itemContClass = `${ppfx}items-c`;
+    this.catsClass = `${ppfx}item-categories`;
     const coll = this.collection;
     this.listenTo(coll, 'add', this.addTo);
     this.listenTo(coll, 'reset', this.render);
@@ -169,7 +169,7 @@ module.exports = require('backbone').View.extend({
   getBlocksEl() {
     if (!this.blocksEl) {
       this.blocksEl = this.el.querySelector(
-        `.${this.noCatClass} .${this.blockContClass}`
+        `.${this.noCatClass} .${this.itemContClass}`
       );
     }
 
@@ -190,13 +190,13 @@ module.exports = require('backbone').View.extend({
     this.el.innerHTML = `
       <div class="${this.catsClass}"></div>
       <div class="${this.noCatClass}">
-        <div class="${this.blockContClass}"></div>
+        <div class="${this.itemContClass}"></div>
       </div>
     `;
 
     this.collection.each(model => this.add(model, frag));
     this.append(frag);
-    const cls = `${this.blockContClass}s ${ppfx}one-bg ${ppfx}two-color`;
+    const cls = `${this.itemContClass}s ${ppfx}one-bg ${ppfx}two-color`;
     this.$el.addClass(cls);
     return this;
   }
