@@ -22356,6 +22356,9 @@ module.exports = {
   // }
   uploadFile: '',
 
+  // In the absence of 'uploadFile' or 'upload' assets will be embedded as Base64
+  embedAsBase64: 1,
+
   // Handle the image url submit from the built-in 'Add image' form
   // @example
   // handleAdd: (textFromInput) => {
@@ -23277,7 +23280,7 @@ module.exports = _backbone2.default.View.extend({
 
     if (uploadFile) {
       this.uploadFile = uploadFile.bind(this);
-    } else if (c.embedAsBase64) {
+    } else if (!c.upload && c.embedAsBase64) {
       this.uploadFile = this.constructor.embedAsBase64;
     }
 
@@ -23702,7 +23705,7 @@ module.exports = function () {
   var c = {},
       defaults = __webpack_require__(/*! ./config/config */ "./src/block_manager/config/config.js"),
       Blocks = __webpack_require__(/*! ./model/Blocks */ "./src/block_manager/model/Blocks.js"),
-      BlockCategories = __webpack_require__(/*! ./model/Categories */ "./src/block_manager/model/Categories.js"),
+      Categories = __webpack_require__(/*! categories/model/Categories */ "./src/categories/model/Categories.js"),
       BlocksView = __webpack_require__(/*! ./view/BlocksView */ "./src/block_manager/view/BlocksView.js");
   var blocks, blocksVisible, blocksView;
   var categories = [];
@@ -23734,7 +23737,7 @@ module.exports = function () {
       // Global blocks collection
       blocks = new Blocks([]);
       blocksVisible = new Blocks([]);
-      categories = new BlockCategories();
+      categories = new Categories();
       blocksView = new BlocksView({
         collection: blocksVisible,
         categories: categories
@@ -23949,8 +23952,6 @@ var _backbone2 = _interopRequireDefault(_backbone);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var Category = __webpack_require__(/*! ./Category */ "./src/block_manager/model/Category.js");
-
 module.exports = _backbone2.default.Model.extend({
   defaults: {
     // If true, triggers an 'active' event on dropped component
@@ -23963,21 +23964,6 @@ module.exports = _backbone2.default.Model.extend({
     content: '',
     category: '',
     attributes: {}
-  },
-
-  initialize: function initialize() {
-    var opts = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
-    var category = this.get('category');
-
-    if (category) {
-      if (typeof category == 'string') {
-        var catObj = new Category({
-          id: category,
-          label: category
-        });
-      }
-    }
   }
 });
 
@@ -24003,55 +23989,6 @@ var Block = __webpack_require__(/*! ./Block */ "./src/block_manager/model/Block.
 
 module.exports = _backbone2.default.Collection.extend({
   model: Block
-});
-
-/***/ }),
-
-/***/ "./src/block_manager/model/Categories.js":
-/*!***********************************************!*\
-  !*** ./src/block_manager/model/Categories.js ***!
-  \***********************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-var _backbone = __webpack_require__(/*! backbone */ "./node_modules/backbone/backbone.js");
-
-var _backbone2 = _interopRequireDefault(_backbone);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-module.exports = _backbone2.default.Collection.extend({
-  model: __webpack_require__(/*! ./Category */ "./src/block_manager/model/Category.js")
-});
-
-/***/ }),
-
-/***/ "./src/block_manager/model/Category.js":
-/*!*********************************************!*\
-  !*** ./src/block_manager/model/Category.js ***!
-  \*********************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-var _backbone = __webpack_require__(/*! backbone */ "./node_modules/backbone/backbone.js");
-
-var _backbone2 = _interopRequireDefault(_backbone);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-module.exports = _backbone2.default.Model.extend({
-  defaults: {
-    id: '',
-    label: '',
-    open: true,
-    attributes: {}
-  }
 });
 
 /***/ }),
@@ -24211,7 +24148,7 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 var _underscore = __webpack_require__(/*! underscore */ "./node_modules/underscore/underscore.js");
 
 var BlockView = __webpack_require__(/*! ./BlockView */ "./src/block_manager/view/BlockView.js");
-var CategoryView = __webpack_require__(/*! ./CategoryView */ "./src/block_manager/view/CategoryView.js");
+var CategoryView = __webpack_require__(/*! categories/view/CategoryView */ "./src/categories/view/CategoryView.js");
 
 module.exports = __webpack_require__(/*! backbone */ "./node_modules/backbone/backbone.js").View.extend({
   initialize: function initialize(opts, config) {
@@ -24221,9 +24158,9 @@ module.exports = __webpack_require__(/*! backbone */ "./node_modules/backbone/ba
     this.renderedCategories = [];
     var ppfx = this.config.pStylePrefix || '';
     this.ppfx = ppfx;
-    this.noCatClass = ppfx + 'blocks-no-cat';
-    this.blockContClass = ppfx + 'blocks-c';
-    this.catsClass = ppfx + 'block-categories';
+    this.noCatClass = ppfx + 'items-no-cat';
+    this.itemContClass = ppfx + 'items-c';
+    this.catsClass = ppfx + 'item-categories';
     var coll = this.collection;
     this.listenTo(coll, 'add', this.addTo);
     this.listenTo(coll, 'reset', this.render);
@@ -24372,7 +24309,7 @@ module.exports = __webpack_require__(/*! backbone */ "./node_modules/backbone/ba
   },
   getBlocksEl: function getBlocksEl() {
     if (!this.blocksEl) {
-      this.blocksEl = this.el.querySelector('.' + this.noCatClass + ' .' + this.blockContClass);
+      this.blocksEl = this.el.querySelector('.' + this.noCatClass + ' .' + this.itemContClass);
     }
 
     return this.blocksEl;
@@ -24389,103 +24326,14 @@ module.exports = __webpack_require__(/*! backbone */ "./node_modules/backbone/ba
     this.catsEl = null;
     this.blocksEl = null;
     this.renderedCategories = [];
-    this.el.innerHTML = '\n      <div class="' + this.catsClass + '"></div>\n      <div class="' + this.noCatClass + '">\n        <div class="' + this.blockContClass + '"></div>\n      </div>\n    ';
+    this.el.innerHTML = '\n      <div class="' + this.catsClass + '"></div>\n      <div class="' + this.noCatClass + '">\n        <div class="' + this.itemContClass + '"></div>\n      </div>\n    ';
 
     this.collection.each(function (model) {
       return _this.add(model, frag);
     });
     this.append(frag);
-    var cls = this.blockContClass + 's ' + ppfx + 'one-bg ' + ppfx + 'two-color';
+    var cls = this.itemContClass + 's ' + ppfx + 'one-bg ' + ppfx + 'two-color';
     this.$el.addClass(cls);
-    return this;
-  }
-});
-
-/***/ }),
-
-/***/ "./src/block_manager/view/CategoryView.js":
-/*!************************************************!*\
-  !*** ./src/block_manager/view/CategoryView.js ***!
-  \************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-var _underscore = __webpack_require__(/*! underscore */ "./node_modules/underscore/underscore.js");
-
-var _underscore2 = _interopRequireDefault(_underscore);
-
-var _backbone = __webpack_require__(/*! backbone */ "./node_modules/backbone/backbone.js");
-
-var _backbone2 = _interopRequireDefault(_backbone);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-module.exports = _backbone2.default.View.extend({
-  template: _underscore2.default.template('\n  <div class="<%= pfx %>title">\n    <i class="<%= pfx %>caret-icon"></i>\n    <%= label %>\n  </div>\n  <div class="<%= pfx %>blocks-c"></div>\n  '),
-
-  events: {},
-
-  initialize: function initialize() {
-    var o = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-    var config = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-
-    this.config = config;
-    var pfx = this.config.pStylePrefix || '';
-    this.pfx = pfx;
-    this.caretR = 'fa fa-caret-right';
-    this.caretD = 'fa fa-caret-down';
-    this.iconClass = pfx + 'caret-icon';
-    this.activeClass = pfx + 'open';
-    this.className = pfx + 'block-category';
-    this.events['click .' + pfx + 'title'] = 'toggle';
-    this.listenTo(this.model, 'change:open', this.updateVisibility);
-    this.delegateEvents();
-  },
-  updateVisibility: function updateVisibility() {
-    if (this.model.get('open')) this.open();else this.close();
-  },
-  open: function open() {
-    this.el.className = this.className + ' ' + this.activeClass;
-    this.getIconEl().className = this.iconClass + ' ' + this.caretD;
-    this.getBlocksEl().style.display = '';
-  },
-  close: function close() {
-    this.el.className = this.className;
-    this.getIconEl().className = this.iconClass + ' ' + this.caretR;
-    this.getBlocksEl().style.display = 'none';
-  },
-  toggle: function toggle() {
-    var model = this.model;
-    model.set('open', !model.get('open'));
-  },
-  getIconEl: function getIconEl() {
-    if (!this.iconEl) {
-      this.iconEl = this.el.querySelector('.' + this.iconClass);
-    }
-
-    return this.iconEl;
-  },
-  getBlocksEl: function getBlocksEl() {
-    if (!this.blocksEl) {
-      this.blocksEl = this.el.querySelector('.' + this.pfx + 'blocks-c');
-    }
-
-    return this.blocksEl;
-  },
-  append: function append(el) {
-    this.getBlocksEl().appendChild(el);
-  },
-  render: function render() {
-    this.el.innerHTML = this.template({
-      pfx: this.pfx,
-      label: this.model.get('label')
-    });
-    this.el.className = this.className;
-    this.$el.css({ order: this.model.get('order') });
-    this.updateVisibility();
     return this;
   }
 });
@@ -25596,6 +25444,144 @@ module.exports = __webpack_require__(/*! backbone */ "./node_modules/backbone/ba
   },
   render: function render() {
     this.$el.attr({ class: this.ppfx + 'frame' });
+    return this;
+  }
+});
+
+/***/ }),
+
+/***/ "./src/categories/model/Categories.js":
+/*!********************************************!*\
+  !*** ./src/categories/model/Categories.js ***!
+  \********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var _backbone = __webpack_require__(/*! backbone */ "./node_modules/backbone/backbone.js");
+
+var _backbone2 = _interopRequireDefault(_backbone);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+module.exports = _backbone2.default.Collection.extend({
+  model: __webpack_require__(/*! ./Category */ "./src/categories/model/Category.js")
+});
+
+/***/ }),
+
+/***/ "./src/categories/model/Category.js":
+/*!******************************************!*\
+  !*** ./src/categories/model/Category.js ***!
+  \******************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var _backbone = __webpack_require__(/*! backbone */ "./node_modules/backbone/backbone.js");
+
+var _backbone2 = _interopRequireDefault(_backbone);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+module.exports = _backbone2.default.Model.extend({
+  defaults: {
+    id: '',
+    label: '',
+    open: true,
+    attributes: {}
+  }
+});
+
+/***/ }),
+
+/***/ "./src/categories/view/CategoryView.js":
+/*!*********************************************!*\
+  !*** ./src/categories/view/CategoryView.js ***!
+  \*********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var _underscore = __webpack_require__(/*! underscore */ "./node_modules/underscore/underscore.js");
+
+var _underscore2 = _interopRequireDefault(_underscore);
+
+var _backbone = __webpack_require__(/*! backbone */ "./node_modules/backbone/backbone.js");
+
+var _backbone2 = _interopRequireDefault(_backbone);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+module.exports = _backbone2.default.View.extend({
+  template: _underscore2.default.template('\n  <div class="<%= pfx %>title">\n    <i class="<%= pfx %>caret-icon"></i>\n    <%= label %>\n  </div>\n  <div class="<%= pfx %>items-c"></div>\n  '),
+
+  events: {},
+
+  initialize: function initialize() {
+    var o = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+    var config = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
+    this.config = config;
+    var pfx = this.config.pStylePrefix || '';
+    this.pfx = pfx;
+    this.caretR = 'fa fa-caret-right';
+    this.caretD = 'fa fa-caret-down';
+    this.iconClass = pfx + 'caret-icon';
+    this.activeClass = pfx + 'open';
+    this.className = pfx + 'item-category';
+    this.events['click .' + pfx + 'title'] = 'toggle';
+    this.listenTo(this.model, 'change:open', this.updateVisibility);
+    this.delegateEvents();
+  },
+  updateVisibility: function updateVisibility() {
+    if (this.model.get('open')) this.open();else this.close();
+  },
+  open: function open() {
+    this.el.className = this.className + ' ' + this.activeClass;
+    this.getIconEl().className = this.iconClass + ' ' + this.caretD;
+    this.getItemsEl().style.display = '';
+  },
+  close: function close() {
+    this.el.className = this.className;
+    this.getIconEl().className = this.iconClass + ' ' + this.caretR;
+    this.getItemsEl().style.display = 'none';
+  },
+  toggle: function toggle() {
+    var model = this.model;
+    model.set('open', !model.get('open'));
+  },
+  getIconEl: function getIconEl() {
+    if (!this.iconEl) {
+      this.iconEl = this.el.querySelector('.' + this.iconClass);
+    }
+
+    return this.iconEl;
+  },
+  getItemsEl: function getItemsEl() {
+    if (!this.blocksEl) {
+      this.blocksEl = this.el.querySelector('.' + this.pfx + 'items-c');
+    }
+
+    return this.blocksEl;
+  },
+  append: function append(el) {
+    this.getItemsEl().appendChild(el);
+  },
+  render: function render() {
+    this.el.innerHTML = this.template({
+      pfx: this.pfx,
+      label: this.model.get('label')
+    });
+    this.el.className = this.className;
+    this.$el.css({ order: this.model.get('order') });
+    this.updateVisibility();
     return this;
   }
 });
@@ -28836,7 +28822,7 @@ module.exports = {
 
     if (!model) {
       var parent = $el.parent();
-      while (!model && parent) {
+      while (!model && parent.length > 0) {
         model = parent.data('model');
         parent = parent.parent();
       }
@@ -28956,7 +28942,7 @@ module.exports = {
 
     if (!model) {
       var parent = $el.parent();
-      while (!model && parent) {
+      while (!model && parent.length > 0) {
         model = parent.data('model');
         parent = parent.parent();
       }
@@ -29632,148 +29618,148 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 var $ = _backbone2.default.$;
 
 module.exports = {
-  getOffsetMethod: function getOffsetMethod(state) {
-    var method = state || '';
-    return 'get' + method + 'OffsetViewerEl';
-  },
-  run: function run(editor, sender, opts) {
-    var opt = opts || {};
-    var state = opt.state || '';
-    var config = editor.getConfig();
+    getOffsetMethod: function getOffsetMethod(state) {
+        var method = state || '';
+        return 'get' + method + 'OffsetViewerEl';
+    },
+    run: function run(editor, sender, opts) {
+        var opt = opts || {};
+        var state = opt.state || '';
+        var config = editor.getConfig();
 
-    if (!config.showOffsets || !config.showOffsetsSelected && state == 'Fixed') {
-      return;
+        if (!config.showOffsets || !config.showOffsetsSelected && state == 'Fixed') {
+            return;
+        }
+
+        var canvas = editor.Canvas;
+        var el = opt.el || '';
+        var pos = opt.elPos || canvas.getElementPos(el);
+        var style = window.getComputedStyle(el);
+        var ppfx = this.ppfx;
+        var stateVar = state + 'State';
+        var method = this.getOffsetMethod(state);
+        var offsetViewer = canvas[method]();
+        offsetViewer.style.display = 'block';
+
+        var marginT = this['marginT' + state];
+        var marginB = this['marginB' + state];
+        var marginL = this['marginL' + state];
+        var marginR = this['marginR' + state];
+        var padT = this['padT' + state];
+        var padB = this['padB' + state];
+        var padL = this['padL' + state];
+        var padR = this['padR' + state];
+
+        if (!this[stateVar]) {
+            var stateLow = state.toLowerCase();
+            var marginName = stateLow + 'margin-v';
+            var paddingName = stateLow + 'padding-v';
+            var marginV = $('<div class="' + ppfx + 'marginName">').get(0);
+            var paddingV = $('<div class="' + ppfx + 'paddingName">').get(0);
+            var marginEls = ppfx + marginName + '-el';
+            var paddingEls = ppfx + paddingName + '-el';
+            var fullMargName = marginEls + ' ' + (ppfx + marginName);
+            var fullPadName = paddingEls + ' ' + (ppfx + paddingName);
+            marginT = $('<div class="' + fullMargName + '-top"></div>').get(0);
+            marginB = $('<div class="' + fullMargName + '-bottom"></div>').get(0);
+            marginL = $('<div class="' + fullMargName + '-left"></div>').get(0);
+            marginR = $('<div class="' + fullMargName + '-right"></div>').get(0);
+            padT = $('<div class="' + fullPadName + '-top"></div>').get(0);
+            padB = $('<div class="' + fullPadName + '-bottom"></div>').get(0);
+            padL = $('<div class="' + fullPadName + '-left"></div>').get(0);
+            padR = $('<div class="' + fullPadName + '-right"></div>').get(0);
+            this['marginT' + state] = marginT;
+            this['marginB' + state] = marginB;
+            this['marginL' + state] = marginL;
+            this['marginR' + state] = marginR;
+            this['padT' + state] = padT;
+            this['padB' + state] = padB;
+            this['padL' + state] = padL;
+            this['padR' + state] = padR;
+            marginV.appendChild(marginT);
+            marginV.appendChild(marginB);
+            marginV.appendChild(marginL);
+            marginV.appendChild(marginR);
+            paddingV.appendChild(padT);
+            paddingV.appendChild(padB);
+            paddingV.appendChild(padL);
+            paddingV.appendChild(padR);
+            offsetViewer.appendChild(marginV);
+            offsetViewer.appendChild(paddingV);
+            this[stateVar] = '1';
+        }
+
+        var unit = 'px';
+        var marginLeftSt = style.marginLeft.replace(unit, '');
+        var marginTopSt = parseInt(style.marginTop.replace(unit, ''));
+        var marginBottomSt = parseInt(style.marginBottom.replace(unit, ''));
+        var mtStyle = marginT.style;
+        var mbStyle = marginB.style;
+        var mlStyle = marginL.style;
+        var mrStyle = marginR.style;
+        var ptStyle = padT.style;
+        var pbStyle = padB.style;
+        var plStyle = padL.style;
+        var prStyle = padR.style;
+        var posLeft = parseInt(pos.left);
+
+        // Margin style
+        mtStyle.height = style.marginTop;
+        mtStyle.width = style.width;
+        mtStyle.top = pos.top - style.marginTop.replace(unit, '') + unit;
+        mtStyle.left = posLeft + unit;
+
+        mbStyle.height = style.marginBottom;
+        mbStyle.width = style.width;
+        mbStyle.top = pos.top + pos.height + unit;
+        mbStyle.left = posLeft + unit;
+
+        var marginSideH = pos.height + marginTopSt + marginBottomSt + unit;
+        var marginSideT = pos.top - marginTopSt + unit;
+        mlStyle.height = marginSideH;
+        mlStyle.width = style.marginLeft;
+        mlStyle.top = marginSideT;
+        mlStyle.left = posLeft - marginLeftSt + unit;
+
+        mrStyle.height = marginSideH;
+        mrStyle.width = style.marginRight;
+        mrStyle.top = marginSideT;
+        mrStyle.left = posLeft + pos.width + unit;
+
+        // Padding style
+        var padTop = parseInt(style.paddingTop.replace(unit, ''));
+        ptStyle.height = style.paddingTop;
+        ptStyle.width = style.width;
+        ptStyle.top = pos.top + unit;
+        ptStyle.left = posLeft + unit;
+
+        var padBot = parseInt(style.paddingBottom.replace(unit, ''));
+        pbStyle.height = style.paddingBottom;
+        pbStyle.width = style.width;
+        pbStyle.top = pos.top + pos.height - padBot + unit;
+        pbStyle.left = posLeft + unit;
+
+        var padSideH = pos.height - padBot - padTop + unit;
+        var padSideT = pos.top + padTop + unit;
+        plStyle.height = padSideH;
+        plStyle.width = style.paddingLeft;
+        plStyle.top = padSideT;
+        plStyle.left = pos.left + unit;
+
+        var padRight = parseInt(style.paddingRight.replace(unit, ''));
+        prStyle.height = padSideH;
+        prStyle.width = style.paddingRight;
+        prStyle.top = padSideT;
+        prStyle.left = pos.left + pos.width - padRight + unit;
+    },
+    stop: function stop(editor, sender, opts) {
+        var opt = opts || {};
+        var state = opt.state || '';
+        var method = this.getOffsetMethod(state);
+        var canvas = editor.Canvas;
+        var offsetViewer = canvas[method]();
+        offsetViewer.style.display = 'none';
     }
-
-    var canvas = editor.Canvas;
-    var el = opt.el || '';
-    var pos = opt.elPos || canvas.getElementPos(el);
-    var style = window.getComputedStyle(el);
-    var ppfx = this.ppfx;
-    var stateVar = state + 'State';
-    var method = this.getOffsetMethod(state);
-    var offsetViewer = canvas[method]();
-    offsetViewer.style.display = 'block';
-
-    var marginT = this['marginT' + state];
-    var marginB = this['marginB' + state];
-    var marginL = this['marginL' + state];
-    var marginR = this['marginR' + state];
-    var padT = this['padT' + state];
-    var padB = this['padB' + state];
-    var padL = this['padL' + state];
-    var padR = this['padR' + state];
-
-    if (!this[stateVar]) {
-      var stateLow = state.toLowerCase();
-      var marginName = stateLow + 'margin-v';
-      var paddingName = stateLow + 'padding-v';
-      var marginV = $('<div class="' + ppfx + 'marginName">').get(0);
-      var paddingV = $('<div class="' + ppfx + 'paddingName">').get(0);
-      var marginEls = ppfx + marginName + '-el';
-      var paddingEls = ppfx + paddingName + '-el';
-      var fullMargName = marginEls + ' ' + (ppfx + marginName);
-      var fullPadName = paddingEls + ' ' + (ppfx + paddingName);
-      marginT = $('<div class="' + fullMargName + '-top"></div>').get(0);
-      marginB = $('<div class="' + fullMargName + '-bottom"></div>').get(0);
-      marginL = $('<div class="' + fullMargName + '-left"></div>').get(0);
-      marginR = $('<div class="' + fullMargName + '-right"></div>').get(0);
-      padT = $('<div class="' + fullPadName + '-top"></div>').get(0);
-      padB = $('<div class="' + fullPadName + '-bottom"></div>').get(0);
-      padL = $('<div class="' + fullPadName + '-left"></div>').get(0);
-      padR = $('<div class="' + fullPadName + '-right"></div>').get(0);
-      this['marginT' + state] = marginT;
-      this['marginB' + state] = marginB;
-      this['marginL' + state] = marginL;
-      this['marginR' + state] = marginR;
-      this['padT' + state] = padT;
-      this['padB' + state] = padB;
-      this['padL' + state] = padL;
-      this['padR' + state] = padR;
-      marginV.appendChild(marginT);
-      marginV.appendChild(marginB);
-      marginV.appendChild(marginL);
-      marginV.appendChild(marginR);
-      paddingV.appendChild(padT);
-      paddingV.appendChild(padB);
-      paddingV.appendChild(padL);
-      paddingV.appendChild(padR);
-      offsetViewer.appendChild(marginV);
-      offsetViewer.appendChild(paddingV);
-      this[stateVar] = '1';
-    }
-
-    var unit = 'px';
-    var marginLeftSt = style.marginLeft.replace(unit, '');
-    var marginTopSt = parseInt(style.marginTop.replace(unit, ''));
-    var marginBottomSt = parseInt(style.marginBottom.replace(unit, ''));
-    var mtStyle = marginT.style;
-    var mbStyle = marginB.style;
-    var mlStyle = marginL.style;
-    var mrStyle = marginR.style;
-    var ptStyle = padT.style;
-    var pbStyle = padB.style;
-    var plStyle = padL.style;
-    var prStyle = padR.style;
-    var posLeft = parseInt(pos.left);
-
-    // Margin style
-    mtStyle.height = style.marginTop;
-    mtStyle.width = style.width;
-    mtStyle.top = pos.top - style.marginTop.replace(unit, '') + unit;
-    mtStyle.left = posLeft + unit;
-
-    mbStyle.height = style.marginBottom;
-    mbStyle.width = style.width;
-    mbStyle.top = pos.top + pos.height + unit;
-    mbStyle.left = posLeft + unit;
-
-    var marginSideH = pos.height + marginTopSt + marginBottomSt + unit;
-    var marginSideT = pos.top - marginTopSt + unit;
-    mlStyle.height = marginSideH;
-    mlStyle.width = style.marginLeft;
-    mlStyle.top = marginSideT;
-    mlStyle.left = posLeft - marginLeftSt + unit;
-
-    mrStyle.height = marginSideH;
-    mrStyle.width = style.marginRight;
-    mrStyle.top = marginSideT;
-    mrStyle.left = posLeft + pos.width + unit;
-
-    // Padding style
-    var padTop = parseInt(style.paddingTop.replace(unit, ''));
-    ptStyle.height = style.paddingTop;
-    ptStyle.width = style.width;
-    ptStyle.top = pos.top + unit;
-    ptStyle.left = posLeft + unit;
-
-    var padBot = parseInt(style.paddingBottom.replace(unit, ''));
-    pbStyle.height = style.paddingBottom;
-    pbStyle.width = style.width;
-    pbStyle.top = pos.top + pos.height - padBot + unit;
-    pbStyle.left = posLeft + unit;
-
-    var padSideH = pos.height - padBot - padTop + unit;
-    var padSideT = pos.top + padTop + unit;
-    plStyle.height = padSideH;
-    plStyle.width = style.paddingLeft;
-    plStyle.top = padSideT;
-    plStyle.left = pos.left + unit;
-
-    var padRight = parseInt(style.paddingRight.replace(unit, ''));
-    prStyle.height = padSideH;
-    prStyle.width = style.paddingRight;
-    prStyle.top = padSideT;
-    prStyle.left = pos.left + pos.width - padRight + unit;
-  },
-  stop: function stop(editor, sender, opts) {
-    var opt = opts || {};
-    var state = opt.state || '';
-    var method = this.getOffsetMethod(state);
-    var canvas = editor.Canvas;
-    var offsetViewer = canvas[method]();
-    offsetViewer.style.display = 'none';
-  }
 };
 
 /***/ }),
@@ -38489,7 +38475,7 @@ module.exports = function () {
     plugins: plugins,
 
     // Will be replaced on build
-    version: '0.14.52',
+    version: '<# VERSION #>',
 
     /**
      * Initialize the editor with passed options
@@ -48392,14 +48378,22 @@ module.exports = {
 "use strict";
 
 
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
 var _underscore = __webpack_require__(/*! underscore */ "./node_modules/underscore/underscore.js");
 
 var defaultOpts = __webpack_require__(/*! ./config/config */ "./src/trait_manager/config/config.js");
+var Traits = __webpack_require__(/*! ./model/Traits */ "./src/trait_manager/model/Traits.js");
 var TraitsView = __webpack_require__(/*! ./view/TraitsView */ "./src/trait_manager/view/TraitsView.js");
+var Categories = __webpack_require__(/*! categories/model/Categories */ "./src/categories/model/Categories.js");
 
 module.exports = function () {
   var c = {};
   var TraitsViewer = void 0;
+  var traits = void 0,
+      traitsVisible = void 0,
+      traitsView = void 0;
+  var categories = [];
 
   return {
     TraitsView: TraitsView,
@@ -48432,11 +48426,40 @@ module.exports = function () {
       (0, _underscore.defaults)(c, defaultOpts);
       var ppfx = c.pStylePrefix;
       ppfx && (c.stylePrefix = '' + ppfx + c.stylePrefix);
+      categories = new Categories();
       TraitsViewer = new TraitsView({
         collection: [],
         editor: c.em,
-        config: c
+        config: c,
+        categories: categories
       });
+
+      // Global traits collection
+      traits = new Traits([]);
+      traitsVisible = new Traits([]);
+      categories = new Categories();
+      traitsView = new TraitsView({
+        collection: traitsVisible,
+        editor: c.em,
+        config: c,
+        categories: categories
+      }, c);
+
+      // Setup the sync between the global and public collections
+      traits.listenTo(traits, 'add', function (model) {
+        traitsVisible.add(model);
+        em && em.trigger('trait:add', model);
+      });
+
+      traits.listenTo(traits, 'remove', function (model) {
+        traitsVisible.remove(model);
+        em && em.trigger('trait:remove', model);
+      });
+
+      traits.listenTo(traits, 'reset', function (coll) {
+        traitsVisible.reset(coll.models);
+      });
+
       return this;
     },
     postRender: function postRender() {
@@ -48460,6 +48483,47 @@ module.exports = function () {
 
 
     /**
+     * Return all blocks
+     * @return {Collection}
+     * @example
+     * const blocks = blockManager.getAll();
+     * console.log(JSON.stringify(blocks));
+     * // [{label: 'Heading', content: '<h1>Put your ...'}, ...]
+     */
+    getAll: function getAll() {
+      return traits;
+    },
+
+
+    /**
+     * Return the visible collection, which containes blocks actually rendered
+     * @return {Collection}
+     */
+    getAllVisible: function getAllVisible() {
+      return traitsVisible;
+    },
+
+
+    /**
+     * Remove a block by id
+     * @param {string} id Block id
+     * @return {Block} Removed block
+     */
+    remove: function remove(id) {
+      return traits.remove(id);
+    },
+
+
+    /**
+     * Return the Blocks container element
+     * @return {HTMLElement}
+     */
+    getContainer: function getContainer() {
+      return traitsView.el;
+    },
+
+
+    /**
      * Add new trait type
      * @param {string} name Type name
      * @param {Object} methods Object representing the trait
@@ -48478,8 +48542,38 @@ module.exports = function () {
     getType: function getType(name) {
       return TraitsViewer.itemsView[name];
     },
-    render: function render() {
-      return TraitsViewer.render().el;
+
+
+    /**
+     * Get all available categories.
+     * It's possible to add categories only within blocks via 'add()' method
+     * @return {Array|Collection}
+     */
+    getCategories: function getCategories() {
+      return categories;
+    },
+    render: function render(traits) {
+      var opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
+      var toRender = traits || this.getAll().models;
+
+      if (opts.external) {
+        return new TraitsView({
+          collection: new Traits(toRender),
+          editor: c.em,
+          config: c,
+          categories: categories
+        }, _extends({}, c, opts)).render().el;
+      }
+
+      if (!TraitsViewer.rendered) {
+        TraitsViewer.render();
+        TraitsViewer.rendered = 1;
+      }
+
+      TraitsViewer.updateConfig(opts);
+      if (TraitsViewer.collection.length) TraitsViewer.collection.reset(toRender);
+      return this.getContainer();
     }
   };
 };
@@ -48513,6 +48607,7 @@ module.exports = __webpack_require__(/*! backbone */ "./node_modules/backbone/ba
     target: '',
     default: '',
     placeholder: '',
+    category: '',
     changeProp: 0,
     options: []
   },
@@ -49251,6 +49346,10 @@ module.exports = Backbone.View.extend({
 "use strict";
 
 
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+var _underscore = __webpack_require__(/*! underscore */ "./node_modules/underscore/underscore.js");
+
 var DomainViews = __webpack_require__(/*! domain_abstract/view/DomainViews */ "./src/domain_abstract/view/DomainViews.js");
 var TraitView = __webpack_require__(/*! ./TraitView */ "./src/trait_manager/view/TraitView.js");
 var TraitSelectView = __webpack_require__(/*! ./TraitSelectView */ "./src/trait_manager/view/TraitSelectView.js");
@@ -49258,6 +49357,7 @@ var TraitCheckboxView = __webpack_require__(/*! ./TraitCheckboxView */ "./src/tr
 var TraitNumberView = __webpack_require__(/*! ./TraitNumberView */ "./src/trait_manager/view/TraitNumberView.js");
 var TraitColorView = __webpack_require__(/*! ./TraitColorView */ "./src/trait_manager/view/TraitColorView.js");
 var TraitButtonView = __webpack_require__(/*! ./TraitButtonView */ "./src/trait_manager/view/TraitButtonView.js");
+var CategoryView = __webpack_require__(/*! categories/view/CategoryView */ "./src/categories/view/CategoryView.js");
 
 module.exports = DomainViews.extend({
   itemView: TraitView,
@@ -49278,8 +49378,14 @@ module.exports = DomainViews.extend({
     this.config = config;
     this.em = o.editor;
     this.pfx = config.stylePrefix || '';
-    this.ppfx = config.pStylePrefix || '';
+    var ppfx = this.config.pStylePrefix || '';
+    this.ppfx = ppfx;
     this.className = this.pfx + 'traits';
+    this.categories = o.categories || '';
+    this.renderedCategories = [];
+    this.noCatClass = ppfx + 'items-no-cat';
+    this.itemContClass = ppfx + 'items-c';
+    this.catsClass = ppfx + 'item-categories';
     var toListen = 'component:toggled';
     this.listenTo(this.em, toListen, this.updatedCollection);
     this.updatedCollection();
@@ -49296,6 +49402,112 @@ module.exports = DomainViews.extend({
     this.el.className = this.className + ' ' + ppfx + 'one-bg ' + ppfx + 'two-color';
     this.collection = comp ? comp.get('traits') : [];
     this.render();
+  },
+  updateConfig: function updateConfig() {
+    var opts = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+    this.config = _extends({}, this.config, opts);
+  },
+
+
+  /**
+   * Add new model to the collection
+   * @param {Model} model
+   * @private
+   */
+  addTo: function addTo(model) {
+    this.add(model);
+  },
+
+
+  /**
+   * Render new model inside the view
+   * @param {Model} model
+   * @param {Object} fragment Fragment collection
+   * @private
+   * */
+  add: function add(model, fragment) {
+    var config = this.config;
+
+    var frag = fragment || null;
+    var itemView = this.itemView;
+    var typeField = model.get(this.itemType);
+    if (this.itemsView && this.itemsView[typeField]) {
+      itemView = this.itemsView[typeField];
+    }
+    var view = new itemView({
+      config: config,
+      model: model,
+      attributes: model.get('attributes')
+    });
+    var rendered = view.render().el;
+    var category = model.get('category');
+
+    // Check for categories
+    if (category && this.categories && !config.ignoreCategories) {
+      if ((0, _underscore.isString)(category)) {
+        category = {
+          id: category,
+          label: category
+        };
+      } else if ((0, _underscore.isObject)(category) && !category.id) {
+        category.id = category.label;
+      }
+
+      var catModel = this.categories.add(category);
+      var catId = catModel.get('id');
+      var catView = this.renderedCategories[catId];
+      var categories = this.getCategoriesEl();
+      model.set('category', catModel);
+
+      if (!catView && categories) {
+        catView = new CategoryView({
+          model: catModel
+        }, this.config).render();
+        this.renderedCategories[catId] = catView;
+        categories.appendChild(catView.el);
+      }
+
+      catView && catView.append(rendered);
+      return;
+    }
+
+    if (frag) frag.appendChild(rendered);else this.append(rendered);
+  },
+  getCategoriesEl: function getCategoriesEl() {
+    if (!this.catsEl) {
+      this.catsEl = this.el.querySelector('.' + this.catsClass);
+    }
+
+    return this.catsEl;
+  },
+  getTraitsEl: function getTraitsEl() {
+    if (!this.traitsEl) {
+      this.traitsEl = this.el.querySelector('.' + this.noCatClass + ' .' + this.itemContClass);
+    }
+
+    return this.traitsEl;
+  },
+  append: function append(el) {
+    var traits = this.getTraitsEl();
+    traits && traits.appendChild(el);
+  },
+  render: function render() {
+    var _this = this;
+
+    var ppfx = this.ppfx;
+    var frag = document.createDocumentFragment();
+    this.catsEl = null;
+    this.traitsEl = null;
+    this.renderedCategories = [];
+    this.el.innerHTML = '\n    <div class="' + this.catsClass + '"></div>\n    <div class="' + this.noCatClass + '">\n      <div class="' + this.itemContClass + '"></div>\n    </div>\n  ';
+    if (this.collection.length) this.collection.each(function (model) {
+      return _this.add(model, frag);
+    });
+    this.append(frag);
+    var cls = this.itemContClass + 's ' + ppfx + 'one-bg ' + ppfx + 'two-color';
+    this.$el.addClass(cls);
+    return this;
   }
 });
 
