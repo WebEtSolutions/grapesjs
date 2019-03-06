@@ -70,7 +70,7 @@ module.exports = {
 
         test('Render container', () => {
           expect(view.getBlocksEl().getAttribute('class')).toEqual(
-            ppfx + 'blocks-c'
+            ppfx + 'items-c'
           );
         });
       });
