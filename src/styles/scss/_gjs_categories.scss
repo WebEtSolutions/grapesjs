@@ -1,0 +1,26 @@
+.#{$app-prefix}items-c {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-start;
+}
+
+.#{$app-prefix}item-categories {
+	display: flex;
+	flex-direction: column;
+}
+
+.#{$app-prefix}item-category {
+	width: 100%;
+
+	&.#{$app-prefix}open {
+		@extend .#{$app-prefix}category-open;
+	}
+
+	.#{$app-prefix}title {
+		@extend .#{$app-prefix}category-title;
+	}
+
+	.#{$app-prefix}caret-icon {
+		margin-right: 5px;
+	}
+}
